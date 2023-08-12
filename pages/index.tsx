@@ -1,6 +1,10 @@
 import { Client } from '@notionhq/client';
 import { GetStaticProps } from 'next';
 import { NextPage } from 'next';
+import styles from '../styles/Home.module.css';
+import dayjs from 'dayjs';
+import prism from 'prismjs';
+import { useEffect } from 'react';
 
 const notion = new Client({
   auth: process.env.NOTION_TOKEN,
@@ -54,7 +58,7 @@ export const getStaticProps: GetStaticProps<StaticProps> = async () => {
   //
   // console.dir(database, { depth: null });
 
-  const page = database.results[0];
+  const page = database.results[2];
   if (!page) {
     return {
       props: {
@@ -148,8 +152,71 @@ export const getStaticProps: GetStaticProps<StaticProps> = async () => {
 };
 
 const Home: NextPage<StaticProps> = ({ post }) => {
-  console.log(post);
-  return <div>temp</div>;
+  useEffect(() => {
+    prism.highlightAll();
+  }, []);
+
+  if (!post) return null;
+  // console.log(post);
+  return (
+    <div className={styles.wrapper}>
+      <div className={styles.post}>
+        <h1 className={styles.title}>{post.title}</h1>
+        <div className={styles.timestampWrapper}>
+          <div>
+            <div className={styles.timestamp}>
+              作成日時：{''}
+              {dayjs(post.createTs).format('YYYY/MM/DD HH:mm:ss')}
+            </div>
+            <div className={styles.timestamp}>
+              更新日時：{''}
+              {dayjs(post.lastEditedTs).format('YYYY/MM/DD HH:mm:ss')}
+            </div>
+          </div>
+        </div>
+        <div>
+          {post.contents.map((content, index) => {
+            const key = `${post.id}_${index}}`;
+            switch (content.type) {
+              case 'paragraph':
+                return (
+                  <p key={key} className={styles.paragraph}>
+                    {content.text}
+                  </p>
+                );
+              case 'heading2':
+                return (
+                  <h2 key={key} className={styles.heading2}>
+                    {content.text}
+                  </h2>
+                );
+              case 'heading3':
+                return (
+                  <h3 key={key} className={styles.heading3}>
+                    {content.text}
+                  </h3>
+                );
+              case 'quote':
+                return (
+                  <blockquote key={key} className={styles.quote}>
+                    {content.text}
+                  </blockquote>
+                );
+              case 'code':
+                return (
+                  <pre
+                    key={key}
+                    className={`${styles.code} lang-${content.language} `}
+                  >
+                    <code>{content.text}</code>
+                  </pre>
+                );
+            }
+          })}
+        </div>
+      </div>
+    </div>
+  );
 };
 
 export default Home;
