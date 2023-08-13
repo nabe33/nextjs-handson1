@@ -62,8 +62,17 @@ export const getStaticProps: GetStaticProps<StaticProps> = async () => {
   // Post型の配列を作成．ここにdatabaseのデータを格納する
   const posts: Post[] = [];
 
+  // Aの処理は非効率なので，forEachループの前にPromiseAllで各ページのブロック取得を並列処理
+  const blockResponses = await Promise.all(
+    database.results.map((page) => {
+      return notion.blocks.children.list({
+        block_id: page.id,
+      });
+    })
+  );
+
   // databaseの各要素をPostに格納するループ
-  for (const page of database.results) {
+  database.results.forEach((page, index) => {
     if (!('properties' in page)) {
       posts.push({
         id: page.id,
@@ -73,7 +82,7 @@ export const getStaticProps: GetStaticProps<StaticProps> = async () => {
         lastEditedTs: null,
         contents: [],
       });
-      continue;
+      return;
     }
 
     let title: string | null = null;
@@ -86,12 +95,16 @@ export const getStaticProps: GetStaticProps<StaticProps> = async () => {
       slug = page.properties['Slug'].rich_text[0]?.plain_text ?? null;
     }
 
-    // 検索条件に該当したNotionのページのトップレベルのブロックの子ブロックを取得
+    // A：検索条件に該当したNotionのページのトップレベルのブロックの子ブロックを取得
     /* Notionでは、ページ内の各要素（テキスト、見出し、リスト、画像など）は「ブロック」として表現され、 */
     /* これらのブロックは階層的に構造化されています。 */
+    /*
     const blocks = await notion.blocks.children.list({
       block_id: page.id,
     });
+    */
+    const blocks = blockResponses[index];
+
     const contents: Content[] = [];
     // blocksの内容をtypeに応じてContent[]に格納する
     blocks.results.forEach((block) => {
@@ -142,7 +155,7 @@ export const getStaticProps: GetStaticProps<StaticProps> = async () => {
       contents,
     });
     // console.dir(post, { depth: null });
-  }
+  });
   return {
     props: { posts },
   };
